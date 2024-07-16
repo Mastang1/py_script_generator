@@ -3,23 +3,9 @@ from tfcParamMang import ParamsOneCase
 
 
 class TcGenerator:
-    method_number = 0
-    def __init__(self, tcParamInstance = None ):
-        self.params = None
-        if tcParamInstance is None:
-            print('Error in ', __name__)
-            exit(1)
-        self.params = tcParamInstance
-        
-        self.scriptName = self.params.testCase
-        self.script_file = None
-        print('Generate script name is : ', self.scriptName)
-
-    def generateCase(self, testCaseName, txPortName, rxPortName, sendIfConfig, receiveIfConfig):
-        self.template = string.Template(
-            """
+    __templateCase = """
 import unittest, os, sys, time
-                                        
+
 class ${testCaseName}(unittest.TestCase):
     def setUp(self):
         self.sendPort = Port.create("${txPortName}")
@@ -32,7 +18,26 @@ class ${testCaseName}(unittest.TestCase):
         #self.sendPort.close()
         #self.receivedPort.close()
     """
-    )
+    __templateMethod  = """
+    def ${method_name}(self):
+        self.rcvValue = self.sendPort.syncSession("${SendValue}")
+        assertIn("${exceptValue}", self.rcvValue)
+    """
+    method_number = 0
+    
+    def __init__(self, tcParamInstance = None ):
+        self.params = None
+        if tcParamInstance is None:
+            print('Error in ', __name__)
+            exit(1)
+        self.params = tcParamInstance
+        
+        self.scriptName = self.params.testCase
+        self.script_file = None
+        print('Generate script name is : ', self.scriptName)
+
+    def generateCase(self, testCaseName, txPortName, rxPortName, sendIfConfig, receiveIfConfig):
+        self.template = string.Template(self.__templateCase)
         
         self.result = self.template.safe_substitute(testCaseName = testCaseName, txPortName = txPortName, rxPortName = rxPortName, \
                                                     sendIfConfig = sendIfConfig, receiveIfConfig = receiveIfConfig)
@@ -42,11 +47,7 @@ class ${testCaseName}(unittest.TestCase):
 
 
     def appendMethod(self, method_name = 'testMethod', SendValue = '', exceptValue = ''):            
-        self.template = string.Template("""
-    def ${method_name}(self):
-        self.rcvValue = self.sendPort.syncSession("${SendValue}")
-        assertIn("${exceptValue}", self.rcvValue)
-    """)
+        self.template = string.Template(self.__templateMethod)
         
         self.result = self.template.safe_substitute( method_name = method_name + str(self.method_number),
                                                     SendValue= SendValue, exceptValue =exceptValue )

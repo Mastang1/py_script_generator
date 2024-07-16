@@ -1,6 +1,6 @@
 
 import unittest, os, sys, time
-                                        
+
 class testCaseTyp(unittest.TestCase):
     def setUp(self):
         self.sendPort = Port.create("uart")
