@@ -21,8 +21,10 @@ def jsonDemo():
     jsonParse()
 
 
-
-
+def testTyp():
+    strIn = '{"uart_port":"COM1", "uart_baudrate": 115200}'
+    data = json.loads(strIn)
+    print(data)
 
 if __name__ == '__main__':
-    jsonDemo()
+    testTyp()

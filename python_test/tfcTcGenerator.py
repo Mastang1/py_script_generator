@@ -7,74 +7,96 @@ class TcGenerator:
 import unittest, os, sys, time
 
 class ${testCaseName}(unittest.TestCase):
+    '''
+    ${classDescription}
+    '''
+    @classmethod
+    def setUpClass(cls):
+        pass
+        
+    @classmethod
+    def tearDownClass(cls):
+        pass
+
     def setUp(self):
-        self.sendPort = Port.create("${txPortName}")
-        self.receivedPort = Port.create("${rxPortName}")                            
-        #self.sendPort.open("${sendIfConfig}")
-        #self.receivedPort.open("${receiveIfConfig}")
+        # Step1, get parameter from current method
+        curMethod = getattr(self, self._testMethodName, None)
+        if curMethod:
+            methodParam = curMethod(getParam = True)
+        
+        self.txIf = DevFactory.createDevIf(methodParam['txIfName'])
+        self.rxIf = DevFactory.createDevIf(methodParam['rxIfName'])   
+
+        # Open by default                         
+        # self.txIf.open()
+        # self.rxIf.open()
 
     def tearDown(self) -> None:
-        pass
-        #self.sendPort.close()
-        #self.receivedPort.close()
+        self.txIf.close()
+        self.rxIf.close()
     """
+
     __templateMethod  = """
-    def ${method_name}(self):
-        self.rcvValue = self.sendPort.syncSession("${SendValue}")
-        assertIn("${exceptValue}", self.rcvValue)
+    def ${methodName}(self, getParam = False):
+        '''
+        ${methodDescription}
+        '''
+        methodParam = ${methodParam}
+        if getParam is True:
+            return methodParam
+        else:
+            self.rcvValue = self.sendPort.syncSession(methodParam['txValue'])
+            assertIn("${exceptValue}", self.rcvValue)
+        
     """
     method_number = 0
-    
-    def __init__(self, tcParamInstance = None ):
+
+    def __init__(self, tcParamInstance = None, scriptFileName = None ):
         self.params = None
         if tcParamInstance is None:
             print('Error in ', __name__)
             exit(1)
         self.params = tcParamInstance
         
-        self.scriptName = self.params.testCase
-        self.script_file = None
+        self.scriptName = scriptFileName
+        self.scriptFile = None
         print('Generate script name is : ', self.scriptName)
 
-    def generateCase(self, testCaseName, txPortName, rxPortName, sendIfConfig, receiveIfConfig):
+    def generateCase(self, testCaseName, classDescription):
         self.template = string.Template(self.__templateCase)
-        
-        self.result = self.template.safe_substitute(testCaseName = testCaseName, txPortName = txPortName, rxPortName = rxPortName, \
-                                                    sendIfConfig = sendIfConfig, receiveIfConfig = receiveIfConfig)
-        with open(self.scriptName, 'w') as self.script_file:
-            self.script_file.write(self.result)
+        self.result = self.template.safe_substitute(testCaseName = testCaseName, classDescription = classDescription)
+        with open(self.scriptName, 'w') as self.scriptFile:
+            self.scriptFile.write(self.result)
 
-
-
-    def appendMethod(self, method_name = 'testMethod', SendValue = '', exceptValue = ''):            
+    def appendMethod(self, methodParam = None):            
         self.template = string.Template(self.__templateMethod)
         
-        self.result = self.template.safe_substitute( method_name = method_name + str(self.method_number),
-                                                    SendValue= SendValue, exceptValue =exceptValue )
-        with open(self.scriptName, 'a') as self.script_file:
-            self.script_file.write(self.result)
+        self.result = self.template.safe_substitute( methodName = methodParam['methodName'] + str(self.method_number), 
+                methodDescription = methodParam['methodDescription'], methodParam = str(methodParam), exceptValue = methodParam['expectedValue'] )
+        with open(self.scriptName, 'a') as self.scriptFile:
+            self.scriptFile.write(self.result)
         self.method_number = self.method_number + 1
 
 if __name__ == '__main__':  # 未执行的
     # We must create a parameter module
-    param = ParamsOneCase()
-    dictMethod = {}
-    dictMethod['send_interface'] = 'uart'
-    dictMethod['send_value'] = 'command string'
-    dictMethod['expected_value'] = 'OK'
-    dictMethod['receivdd_interface'] = 'can'
-    dictMethod['description'] = 'This is a simple description.'
-    param.addTestMethod(dictMethod)
-    print(param.at(0))
+    param = ParamsOneCase(testcaseName= 'testCaseCan2Can')
 
-    myTcGenerator = TcGenerator(tcParamInstance=param)
-    myTcGenerator.generateCase('testCaseTyp','uart', 'can', 'config for send', 'config for received')
-    myTcGenerator.appendMethod(SendValue='cmd', exceptValue = 'OK')
+    for i in range(10):
+        dictMethod = {}
+        dictMethod['methodName'] = 'testMethod'
+        dictMethod['txIfName'] = 'uart'
+        dictMethod['txIfConfig'] = 'config tx interface'
+        dictMethod['txValue'] = 'command string'
+        dictMethod['expectedValue'] = 'OK'
+        dictMethod['rxIfName'] = 'can'
+        dictMethod['rxIfConfig'] = 'config tx interface'
+        dictMethod['methodDescription'] = 'This is a simple description:' + str(i)
+        param.addTestMethod(dictMethod)
+        print('Test parameter:',param(i)['methodDescription'])
 
-    myTcGenerator.appendMethod('MytestMethod', 'cmd' , 'OK')
-    
+    myTcGenerator = TcGenerator(tcParamInstance=param, scriptFileName="fight.py")
+    myTcGenerator.generateCase(param.testCaseName,'This is a class, create ...')
 
-    
-    
-    # testGen = TcGenerator()
-    # testGen.generateCase('uart', 'can', 'config for send', 'config for received')
+    for j in range(10):
+        myTcGenerator.appendMethod(param(j))
+        print(param(j)['methodDescription'])
